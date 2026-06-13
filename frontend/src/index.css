@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --npl-bg: #f6f4fb;
+  --npl-ink: #170a1c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--npl-bg);
+  color: var(--npl-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}

@@ -1,0 +1,58 @@
+"""Plain-language security writing guidelines, served via the API."""
+
+GUIDELINES = [
+    {
+        "id": "plain-language",
+        "title": "Use plain language, define every term",
+        "category": "Clarity",
+        "principle": "Assume the reader has never seen a security acronym. Define each term the first time it appears.",
+        "antiPattern": "Complete TOTP enrollment using your authenticator app.",
+        "pattern": "Open your code app (like Google Authenticator) and enter the 6-digit code it shows.",
+        "personas": ["Non-technical", "Older adult", "Non-native English"],
+    },
+    {
+        "id": "numbered-steps",
+        "title": "One action per numbered step",
+        "category": "Structure",
+        "principle": "Break instructions into a numbered list. Each step should contain exactly one action.",
+        "antiPattern": "Go to settings, select security, enable two-factor and scan the code to finish setup.",
+        "pattern": "1. Open Settings.\n2. Tap Security.\n3. Turn on the second login step.\n4. Scan the square barcode on screen.",
+        "personas": ["Non-technical", "Older adult"],
+    },
+    {
+        "id": "calm-tone",
+        "title": "Lead with what to do, not what is wrong",
+        "category": "Tone",
+        "principle": "Avoid ALL CAPS, alarm words, and fear. Calm, action-first wording helps people respond well.",
+        "antiPattern": "SECURITY ALERT: Threat actors are attempting credential harvesting!",
+        "pattern": "This message may be a scam. Here is how to stay safe: do not click any links.",
+        "personas": ["Non-technical", "Older adult", "Non-native English"],
+    },
+    {
+        "id": "active-voice",
+        "title": "Write in active voice",
+        "category": "Clarity",
+        "principle": "Tell the reader directly what to do. Passive constructions hide who acts.",
+        "antiPattern": "SMS-based codes have been deprecated for security reasons.",
+        "pattern": "We switched to app codes because they are safer. Here is how to set one up.",
+        "personas": ["Non-native English"],
+    },
+    {
+        "id": "reassurance",
+        "title": "Always offer reassurance and a way to get help",
+        "category": "Inclusivity",
+        "principle": "Tell people they are safe and where to turn if they are stuck. Include a human contact path.",
+        "antiPattern": "Standard recovery SLA is 3-5 business days.",
+        "pattern": "We will help you get back in. This usually takes 1-2 days, and we will email you at each step.",
+        "personas": ["Older adult", "Non-technical"],
+    },
+    {
+        "id": "short-sentences",
+        "title": "Keep sentences short",
+        "category": "Readability",
+        "principle": "Aim for one idea per sentence, under about 20 words. Long sentences raise cognitive load.",
+        "antiPattern": "If your account is linked via OAuth/SSO, recovery requires session invalidation and re-authorization through your identity provider.",
+        "pattern": "Does your workplace manage your login? Contact your IT team. They can restore your access.",
+        "personas": ["Non-native English", "Older adult"],
+    },
+]
