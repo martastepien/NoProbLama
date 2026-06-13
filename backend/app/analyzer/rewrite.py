@@ -1,4 +1,12 @@
-"""Rule-based plain-language rewriter (no LLM). Swaps jargon, calms shouting, adds numbered steps and a reassuring close."""
+"""Rule-based plain-language rewriter, no LLM.
+
+Pipeline applied in order:
+  1. swap jargon for plain replacements from the JARGON dict
+  2. collapse duplicates created by swapping (e.g. "2FA/MFA" -> same phrase twice)
+  3. title-case ALL-CAPS words and soften repeated exclamation marks
+  4. sort sentences into intro / action steps / reassurance buckets
+  5. rebuild as: intro (max 2 sentences) + numbered steps + reassuring close
+"""
 from __future__ import annotations
 
 import re
@@ -31,9 +39,9 @@ def _calm_shouting(text: str) -> str:
     def repl(m: re.Match) -> str:
         word = m.group(0)
         return word[:1].upper() + word[1:].lower()
-    # title-case any run of 3+ uppercase letters
+    # title-case any run of 3+ uppercase letters (e.g. "ALERT" -> "Alert")
     text = re.sub(r"\b[A-Z]{3,}\b", repl, text)
-    # Soften exclamation storms.
+    # multiple exclamation marks -> single period; lone ! -> period
     text = re.sub(r"!{2,}", ".", text)
     text = text.replace("!", ".")
     return text

@@ -1,8 +1,12 @@
-"""Cybersecurity jargon dictionary and detector.
+"""Cybersecurity jargon dictionary and regex detector.
 
-Each entry has a plain-language replacement, a short definition, and a severity
-score (1-3). Multi-word terms are matched longest-first so "authenticator app"
-beats "authenticator". Easy to extend with your own product vocabulary.
+Each entry maps a term to:
+  plain      - the replacement used by the rewriter
+  definition - a short reader-facing explanation shown in the "Key terms" panel
+  severity   - 1 (mild), 2 (moderate), 3 (heavy) - used to weight the jargon score
+
+Terms are matched case-insensitively, longest-first, so "authenticator app" won't
+also fire "authenticator". Add your own product vocabulary by extending JARGON.
 """
 from __future__ import annotations
 
@@ -215,9 +219,11 @@ _pattern = re.compile(
 
 
 def find_jargon(text: str) -> List[JargonHit]:
-    """Return non-overlapping jargon hits in order of appearance."""
+    """Scan text for jargon terms and return hits in order of appearance.
+    Overlapping spans are skipped so "authenticator app" won't also fire "authenticator".
+    """
     hits: List[JargonHit] = []
-    occupied = []  # ranges already claimed by a longer match
+    occupied = []  # (start, end) spans already claimed by a longer match
 
     for m in _pattern.finditer(text or ""):
         s, e = m.start(), m.end()

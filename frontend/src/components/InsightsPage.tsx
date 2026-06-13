@@ -4,6 +4,8 @@ import {
 } from "recharts";
 import { TrendingDown, FileText, AlertTriangle, Users, Zap, TrendingUp, Minus } from "lucide-react";
 import { fetchInsights, fetchReviews } from "../services/api";
+import { InfoTip } from "./InfoTip";
+import { INSIGHT_CRITERIA } from "../lib/criteria";
 
 const personaColors: Record<string, string> = {
   "Non-technical": "#c19ab7",
@@ -81,10 +83,10 @@ export function InsightsPage() {
   const topPersona = [...personaImpact].sort((a, b) => b.issues - a.issues)[0];
 
   const kpis = [
-    { label: "Avg. accessibility score", value: String(insights?.avgScore ?? "–"), delta: "Across all reviews", up: null, icon: TrendingUp, color: "#228cdb" },
-    { label: "Documents analyzed", value: String(total), delta: "In your workspace", up: true, icon: FileText, color: "#0b7189" },
-    { label: "High-risk documents", value: String(insights?.riskCounts?.high ?? 0), delta: "Score below 50", up: false, icon: AlertTriangle, color: "#a02020" },
-    { label: "Total issues flagged", value: String(totalIssues), delta: "Across all reviews", up: null, icon: Zap, color: "#9c95dc" },
+    { label: "Avg. accessibility score", value: String(insights?.avgScore ?? "–"), delta: "Across all reviews", up: null, icon: TrendingUp, color: "#228cdb", info: INSIGHT_CRITERIA.avgScore },
+    { label: "Documents analyzed", value: String(total), delta: "In your workspace", up: true, icon: FileText, color: "#0b7189", info: INSIGHT_CRITERIA.docsAnalyzed },
+    { label: "High-risk documents", value: String(insights?.riskCounts?.high ?? 0), delta: "Score below 50", up: false, icon: AlertTriangle, color: "#a02020", info: INSIGHT_CRITERIA.highRisk },
+    { label: "Total issues flagged", value: String(totalIssues), delta: "Across all reviews", up: null, icon: Zap, color: "#9c95dc", info: INSIGHT_CRITERIA.totalIssues },
   ];
 
   return (
@@ -103,10 +105,12 @@ export function InsightsPage() {
 
         {/* KPI strip */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          {kpis.map(({ label, value, delta, up, icon: Icon, color }) => (
+          {kpis.map(({ label, value, delta, up, icon: Icon, color, info }) => (
             <div key={label} className="rounded-xl p-4" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
               <div className="flex items-center justify-between mb-3">
-                <span style={{ fontSize: "0.78rem", color: "#6b6480", fontWeight: 500 }}>{label}</span>
+                <span style={{ fontSize: "0.78rem", color: "#6b6480", fontWeight: 500 }} className="flex items-center gap-1">
+                  {label} <InfoTip text={info} />
+                </span>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}14` }}>
                   <Icon size={13} style={{ color }} />
                 </div>
@@ -129,7 +133,9 @@ export function InsightsPage() {
           <div className="rounded-xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }}>Accessibility Score by Document</h3>
+                <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }} className="flex items-center gap-1.5">
+                  Accessibility Score by Document <InfoTip text={INSIGHT_CRITERIA.scoreByDoc} />
+                </h3>
                 <p style={{ fontSize: "0.75rem", color: "#6b6480", marginTop: "1px" }}>In order analyzed</p>
               </div>
               <span style={{ fontSize: "1.4rem", fontWeight: 700, color: "#228cdb", fontFamily: "DM Mono, monospace" }}>{insights?.avgScore ?? "–"}</span>
@@ -147,7 +153,9 @@ export function InsightsPage() {
 
           <div className="rounded-xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
             <div className="mb-4">
-              <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }}>Most Common Issues</h3>
+              <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }} className="flex items-center gap-1.5">
+                Most Common Issues <InfoTip text={INSIGHT_CRITERIA.topIssues} />
+              </h3>
               <p style={{ fontSize: "0.75rem", color: "#6b6480", marginTop: "1px" }}>Occurrences across all reviews</p>
             </div>
             <ResponsiveContainer width="100%" height={160}>
@@ -189,7 +197,9 @@ export function InsightsPage() {
           <div className="rounded-xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
             <div className="flex items-center gap-2 mb-4">
               <Users size={14} style={{ color: "#9c95dc" }} />
-              <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }}>Persona Impact Index</h3>
+              <h3 style={{ fontSize: "0.925rem", fontWeight: 600, color: "#170a1c" }} className="flex items-center gap-1.5">
+                Persona Impact Index <InfoTip text={INSIGHT_CRITERIA.personaImpact} />
+              </h3>
             </div>
             <p style={{ fontSize: "0.78rem", color: "#6b6480", lineHeight: 1.6, marginBottom: "16px" }}>
               Number of comprehension barriers detected for each under-represented user group.

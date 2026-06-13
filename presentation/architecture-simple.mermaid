@@ -1,0 +1,8 @@
+flowchart TD
+    U(["Paste a security message"]) --> ENG["Backend engine"]
+    ENG --> DET["Detectors: readability, jargon, structure"]
+    DET --> CHK["24 checks<br/>Accessibility 12 + Utility 12"]
+    CHK --> SCORE["Score = passed / applicable<br/>(not-applicable checks excluded)"]
+    SCORE --> OUT["Review: score and risk, failed checks,<br/>persona barriers, key terms, plain rewrite"]
+    OUT --> UI["Shown in the app and saved"]
+    OUT -.->|"optional"| AI["AI rewrite (OpenAI), falls back to rules"]

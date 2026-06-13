@@ -1,4 +1,8 @@
-"""Flesch Reading Ease and Flesch-Kincaid Grade Level calculations."""
+"""Flesch Reading Ease (0-100, higher = easier) and Flesch-Kincaid Grade Level.
+
+Both formulas penalise long sentences (words/sentence) and long words (syllables/word).
+Flesch RE feeds directly into the readability component of the overall score.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,9 +33,11 @@ def analyze_readability(text: str) -> ReadabilityStats:
     words_per_sentence = n_words / n_sentences
     syllables_per_word = n_syllables / n_words
 
+    # standard Flesch Reading Ease formula; result is clamped to 0-100
     ease = 206.835 - 1.015 * words_per_sentence - 84.6 * syllables_per_word
     ease = max(0.0, min(100.0, ease))
 
+    # Flesch-Kincaid Grade Level (US school grade equivalent); floored at 0
     grade = 0.39 * words_per_sentence + 11.8 * syllables_per_word - 15.59
     grade = max(0.0, grade)
 

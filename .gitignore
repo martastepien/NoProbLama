@@ -13,3 +13,7 @@ venv/
 # env files
 .env
 .env.*
+!.env.example
+
+# persisted reviews (user data, created at runtime)
+backend/data/

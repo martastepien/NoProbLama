@@ -1,4 +1,7 @@
-"""Demo seed messages. Raw input only - scores and analysis are generated at runtime."""
+"""Six realistic security-comms messages used to seed the demo dashboard.
+These are raw input text only - all scores, issues, rewrites, and persona breakdowns
+are produced by running the engine at startup, not hardcoded here.
+"""
 
 SAMPLE_MESSAGES = [
     {

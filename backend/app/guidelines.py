@@ -1,4 +1,6 @@
-"""Plain-language security writing guidelines, served via the API."""
+"""Six plain-language security writing guidelines served by GET /api/guidelines.
+Each has an id, category, principle, an anti-pattern example, a good-pattern example, and the personas it affects.
+"""
 
 GUIDELINES = [
     {

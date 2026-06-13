@@ -23,9 +23,9 @@ export function NavBar() {
     >
       <div className="w-full max-w-7xl mx-auto px-6 flex items-center justify-between">
         <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
-          <img src={logo} alt="Noproblamma logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
+          <img src={logo} alt="NoProbLama logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
           <span style={{ color: "#170a1c", letterSpacing: "-0.025em", fontSize: "1rem" }} className="font-bold">
-            Noproblamma
+            NoProbLama
           </span>
         </NavLink>
 

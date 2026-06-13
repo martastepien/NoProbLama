@@ -81,7 +81,7 @@ export function GuidelinesPage() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium"
             style={{ background: "#e8f5f7", color: "#0b7189", border: "1px solid rgba(11,113,137,0.15)" }}
           >
-            v2.1 · Aug 2025
+            v1.0 · Jun 2026
           </span>
         </div>
 

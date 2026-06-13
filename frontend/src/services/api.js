@@ -31,6 +31,11 @@ export const analyzeText = ({ text, title = "", team = "" }) =>
     body: JSON.stringify({ text, title, team }),
   });
 
+// Optional AI rewrite layer.
+export const fetchAiStatus = () => request("/api/ai-status");
+export const requestAiRewrite = (id) =>
+  request(`/api/reviews/${id}/ai-rewrite`, { method: "POST" });
+
 // ---- shared UI helpers (pure, no data) -------------------------------------
 
 export function scoreColor(score) {

@@ -1,119 +1,79 @@
 # NoProbLama
 
-**Make security understandable.** A tool for teams who write security communications
-(MFA flows, login alerts, phishing warnings, password resets) so those messages are
-understandable and accessible for everyone — especially under-represented readers:
-non-technical users, older adults, and non-native English speakers.
+A tool for security and UX teams to check whether their security messages (MFA flows, login alerts, phishing warnings, password resets) are actually understandable — especially for non-technical users, older adults, and non-native English speakers.
 
-Built for the Adyen "under-representation in cyber security" challenge. The product is an
-*expert system that reviews security copy* and flags representation gaps, jargon, and
-accessibility barriers, then suggests a plain-language rewrite.
+Built for the Adyen "under-representation in cyber security" hackathon challenge.
 
 ---
 
-## What's real (not hard-coded)
+## How it works
 
-Every score, issue, rewrite and persona analysis is **computed at request time** by a
-rule-based engine. Paste any security message and the backend analyses it live. The
-six seed reviews on the dashboard are not canned data — they are produced by running the
-same engine over sample input messages at startup (`backend/app/samples.py`).
+Paste any security message. The backend runs it through a rule-based engine and returns a score, flagged issues, a persona breakdown, and a plain-language rewrite. Everything is computed live — no hardcoded results.
 
-The engine is deterministic, offline, and needs no API key, which makes it demo-proof and
-explainable: a team can always see *why* a message scored the way it did.
+**Score (0-100)** comes from **24 binary checks** in two equal pillars (`analyzer/criteria_engine.py`):
+- **Accessibility (12 checks):** language simplicity, cognitive load, consistent terminology, motor/memory needs — can people read and understand it?
+- **Utility (12 checks):** straightforward instructions, clear feedback, an obvious secure option, helpful error messages — can people act safely?
 
-### How the analysis works
+Each check returns **pass / fail / not-applicable**. Score = `passed ÷ applicable × 100`, so checks that don't apply to a message (e.g. an error message for a simple alert) are excluded and short, single-purpose messages aren't penalised for affordances they never needed (the same way WCAG conformance handles non-applicable criteria). The supporting detectors (Flesch readability, the jargon dictionary, passive-voice / step / tone detection) feed those checks.
 
-| Module | What it does |
-| --- | --- |
-| `analyzer/readability.py` | Flesch Reading Ease + Flesch-Kincaid grade (sentence/word/syllable stats) |
-| `analyzer/jargon.py` | Cybersecurity jargon dictionary → plain-language swaps, definitions, severity. Editable by teams. |
-| `analyzer/structure.py` | Passive voice, numbered-step detection, ALL-CAPS/fear tone, long sentences, reassurance |
-| `analyzer/personas.py` | Generates concrete issues per persona (Non-technical / Older adult / Non-native English) |
-| `analyzer/rewrite.py` | Deterministic plain-language rewriter: swaps jargon, calms shouting, builds numbered steps |
-| `analyzer/engine.py` | Combines the above into a 0–100 score (Readability, Jargon-free, Step clarity, Inclusivity), risk level, issues, tags |
+**Risk band:** low (≥70) / medium (≥50) / high (<50)
 
-Scoring weights: `0.30 readability + 0.30 jargon-free + 0.20 step clarity + 0.20 inclusivity`.
-Risk: `≥70 good · 50–69 moderate · <50 high`.
+**Persona issues** are generated separately for three reader profiles:
+- Non-technical: severity-3 jargon, missing steps, fear tone
+- Older adult: unfamiliar acronyms, avg sentence length >18 words, no human contact path
+- Non-native English: passive voice, long sentences, compound technical terms
+
+The jargon dictionary (`analyzer/jargon.py`) maps ~35 cybersecurity terms to plain replacements, definitions, and severity weights. It's designed to be extended with your own product vocabulary.
 
 ---
 
-## Architecture
+## Running it
 
-```
-NoProbLama/
-├── backend/                 FastAPI + rule-based engine (Python, no API key)
-│   ├── app/
-│   │   ├── analyzer/        the analysis engine (see table above)
-│   │   ├── main.py          REST API
-│   │   ├── storage.py       in-memory review store (seeded via the real engine)
-│   │   ├── samples.py       raw sample messages (input only)
-│   │   └── guidelines.py    pattern / anti-pattern library
-│   ├── tests/test_engine.py 7 passing tests
-│   └── requirements.txt
-└── frontend/                React 19 + Vite + Tailwind v4 (Figma design)
-    └── src/
-        ├── components/       Dashboard / Reviews / Review / Insights / Guidelines / NavBar
-        └── services/api.js   single client for the backend
-```
+Two terminals:
 
-### API
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `/api/analyze` | Analyse `{text, title?, team?}` → full review, stored |
-| GET | `/api/reviews` | All reviews (newest first) |
-| GET | `/api/reviews/{id}` | One review |
-| GET | `/api/insights` | Aggregates: avg score, risk counts, top issues, persona impact |
-| GET | `/api/guidelines` | Writing pattern / anti-pattern library |
-| GET | `/api/health` | Health check |
-
----
-
-## Run it
-
-Two terminals.
-
-**1. Backend** (http://localhost:8000)
-
+**Backend** (http://localhost:8000)
 ```bash
 cd backend
 pip install -r requirements.txt
 python3 -m uvicorn app.main:app --reload --port 8000
-# or: ./run.sh
 ```
 
-**2. Frontend** (http://localhost:5173)
-
+**Frontend** (http://localhost:5173)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The frontend proxies `/api/*` to the backend automatically (see `vite.config.js`), so no
-env vars are needed in development. For a separately hosted backend, set `VITE_API_BASE`.
+The frontend proxies `/api/*` to the backend via Vite config, so no env vars needed locally.
 
 **Tests**
-
 ```bash
 cd backend && python3 -m pytest -q
 ```
 
 ---
 
-## Try it
+## Optional: AI rewrite
 
-Open the app, click **New Review**, and paste something like:
+The rule-based engine handles all scoring and detection. You can also enable an on-demand AI rewrite via OpenAI (`gpt-4o-mini`) for a more natural result:
 
-> SECURITY ALERT: Threat actors use spoofed addresses to conduct credential harvesting.
-> Complete TOTP enrollment via your authenticator app.
+```bash
+cp backend/.env.example backend/.env
+# add your OPENAI_API_KEY to backend/.env
+```
 
-You'll get a live score (~35, high risk), flagged jargon, persona-specific barriers, and a
-calmer plain-language rewrite.
+The AI rewrite button appears on each review once a key is set. If no key is present, the button is hidden and everything else works normally.
 
-## Path to production
+---
 
-The store is a swappable in-memory class — replace with Postgres without touching the
-engine or UI. The jargon dictionary and guidelines are data, so teams extend them without
-code changes. The engine could later expose an optional LLM rewrite behind the same
-interface, and the same rules can run as a CI lint check on security copy before publish.
+## API
+
+| Method | Path | What it does |
+|--------|------|--------------|
+| POST | `/api/analyze` | Run the engine on `{text, title?, team?}`, store and return the review |
+| GET | `/api/reviews` | All reviews, newest first |
+| GET | `/api/reviews/{id}` | One review by id |
+| GET | `/api/insights` | Aggregates across all reviews: avg score, top terms, persona impact |
+| GET | `/api/guidelines` | The six plain-language writing guidelines |
+| GET | `/api/health` | Health check |

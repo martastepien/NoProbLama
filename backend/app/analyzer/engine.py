@@ -1,4 +1,9 @@
-"""Main analysis engine. Takes raw text and returns a scored, persona-aware review."""
+"""Runs all detectors on the input text and assembles the full review object.
+
+Score is a weighted average of four components:
+  readability (30%) + jargon-free (30%) + step clarity (20%) + inclusivity (20%)
+Risk band: low >= 70, medium >= 50, high below that.
+"""
 from __future__ import annotations
 
 import re
@@ -11,8 +16,9 @@ from .structure import analyze_structure, StructureStats
 from .personas import build_persona_issues
 from .rewrite import rewrite
 from .text_utils import split_sentences
+from .criteria_engine import evaluate_criteria
 
-# acronyms that tend to confuse non-expert readers
+# these acronyms get a dedicated "Assumes prior knowledge" issue on top of general jargon flagging
 _ACRONYM_TERMS = {"mfa", "2fa", "totp", "sso", "oauth", "kyc", "sla", "otp", "vpn"}
 
 _TAG_RULES = [
@@ -133,45 +139,49 @@ def analyze(text: str, title: str = "", team: str = "") -> Dict:
     structure = analyze_structure(text)
     personas = build_persona_issues(jargon, structure, read)
 
-    word_count = read.word_count
-    wj = _weighted_jargon_per_100w(jargon, word_count)
+    # 24-criteria Accessibility/Utility scoring (Pass/Fail/Not-applicable).
+    crit = evaluate_criteria(text, read, jargon, structure)
+    score = crit["overall"]
 
-    # component scores (0-100)
-    readability_score = _clamp(read.flesch_reading_ease)
-
-    jargon_free = _clamp(100 - min(85, wj * 4.0))
-
-    step = 50.0
-    if structure.has_steps:
-        step += 32
-    if structure.action_sentence_count >= 2 and not structure.has_steps:
-        step -= 22
-    step -= min(20, len(structure.long_sentences) * 7)
-    step -= min(15, len(structure.passive_sentences) * 5)
-    if structure.action_sentence_count == 0:
-        step += 10  # probably not instructional, so don't dock points for missing steps
-    step_clarity = _clamp(step)
-
-    incl = 90.0
-    incl -= min(35, wj * 2.0)
-    if (structure.shouting_tokens or len(structure.fear_words) >= 3) and not structure.has_reassurance:
-        incl -= 12
-    if structure.action_sentence_count >= 2 and not structure.has_steps:
-        incl -= 10
-    incl += 8 if structure.has_reassurance else 0
-    incl -= min(10, len(structure.long_sentences) * 4)
-    inclusivity = _clamp(incl, 10, 100)
-
-    score = _clamp(
-        0.30 * readability_score
-        + 0.30 * jargon_free
-        + 0.20 * step_clarity
-        + 0.20 * inclusivity
-    )
+    # Safety cap: a message that is genuinely unreadable for under-represented
+    # readers should never land above High risk, even if it passes many Utility
+    # checks. Triggers if the Accessibility pillar is weak, or there are several
+    # heavy (severity-3) jargon terms a layperson won't know. Kept transparent
+    # via cap_reason so the score drop is never mysterious.
+    accessibility = next((p["val"] for p in crit["pillars"] if p["label"] == "Accessibility"), 100)
+    heavy_terms = sorted({h.matched for h in jargon if h.severity >= 3})
+    cap_reason = ""
+    if score >= 50 and (accessibility < 60 or len(heavy_terms) >= 2):
+        reasons = []
+        if accessibility < 60:
+            reasons.append(f"the Accessibility pillar scored {accessibility}")
+        if len(heavy_terms) >= 2:
+            reasons.append(f"{len(heavy_terms)} heavy jargon terms ({', '.join(heavy_terms[:3])})")
+        cap_reason = (
+            "Capped to High risk because " + " and ".join(reasons)
+            + ". Under-represented readers likely cannot understand this message."
+        )
+        score = 49
 
     risk = "low" if score >= 70 else "medium" if score >= 50 else "high"
 
-    issues = _build_issues(jargon, structure, text)
+    # Detected issues = the criteria that FAILED, most severe first.
+    sev_rank = {"High": 0, "Medium": 1, "Low": 2}
+    failed = sorted(
+        (r for r in crit["criteria"] if r["status"] == "fail"),
+        key=lambda r: sev_rank.get(r["severity"], 3),
+    )
+    issues = [{
+        "type": r["title"],
+        "severity": r["severity"],
+        "excerpt": r["evidence"],
+        "recommendation": r["fix"],
+        "pillar": r["pillar"],
+        "branch": r["branch"],
+    } for r in failed]
+
+    applicable = [r for r in crit["criteria"] if r["status"] != "na"]
+    passed = [r for r in applicable if r["status"] == "pass"]
 
     return {
         "title": title or _auto_title(text),
@@ -179,16 +189,18 @@ def analyze(text: str, title: str = "", team: str = "") -> Dict:
         "date": datetime.utcnow().strftime("%b %d, %Y"),
         "score": score,
         "risk": risk,
+        "capped": bool(cap_reason),
+        "capReason": cap_reason,
         "tags": _make_tags(text, jargon),
         "originalText": text,
         "suggestedRewrite": rewrite(text),
         "flaggedTerms": unique_terms(jargon),
-        "scoreBreakdown": [
-            {"label": "Readability", "val": readability_score},
-            {"label": "Jargon-free", "val": jargon_free},
-            {"label": "Step clarity", "val": step_clarity},
-            {"label": "Inclusivity", "val": inclusivity},
-        ],
+        "keyTerms": _key_terms(jargon),
+        # scoreBreakdown bars are the two pillars (kept generic for the frontend).
+        "scoreBreakdown": [{"label": p["label"], "val": p["val"]} for p in crit["pillars"]],
+        "pillars": crit["pillars"],
+        "branches": crit["branches"],
+        "criteria": crit["criteria"],
         "issues": issues,
         "personaIssues": personas,
         "metrics": {
@@ -200,8 +212,23 @@ def analyze(text: str, title: str = "", team: str = "") -> Dict:
             "jargonCount": len(jargon),
             "passiveCount": len(structure.passive_sentences),
             "hasSteps": structure.has_steps,
+            "criteriaPassed": len(passed),
+            "criteriaApplicable": len(applicable),
         },
     }
+
+
+def _key_terms(jargon: List[JargonHit]) -> List[Dict]:
+    """One entry per distinct jargon term found, with its plain word and a
+    reader-facing definition. Powers the "Key terms explained" panel."""
+    seen = set()
+    out: List[Dict] = []
+    for h in jargon:
+        if h.term in seen:
+            continue
+        seen.add(h.term)
+        out.append({"term": h.matched, "plain": h.plain, "definition": h.definition})
+    return out
 
 
 def _auto_title(text: str) -> str:

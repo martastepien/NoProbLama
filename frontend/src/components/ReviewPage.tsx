@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { AlertTriangle, Info, CheckCircle, ChevronRight, Sparkles, Copy, Check, ArrowLeft, Zap, Loader2 } from "lucide-react";
-import { fetchReview, fetchReviews, analyzeText, scoreColor } from "../services/api";
+import { AlertTriangle, Info, CheckCircle, XCircle, MinusCircle, ChevronRight, ChevronDown, Sparkles, Copy, Check, ArrowLeft, Zap, Loader2, Wand2 } from "lucide-react";
+import { fetchReview, fetchReviews, analyzeText, scoreColor, fetchAiStatus, requestAiRewrite } from "../services/api";
+import { InfoTip } from "./InfoTip";
+import { SCORE_CRITERIA, OVERALL_CRITERIA, PERSONA_CRITERIA, PERSONA_OVERVIEW, ISSUES_CRITERIA, KEY_TERMS_CRITERIA, CHECKS_CRITERIA, BRANCHES_CRITERIA } from "../lib/criteria";
 
 const severityStyle: Record<string, { bg: string; color: string; icon: React.ElementType }> = {
   High:   { bg: "#fdf0f0", color: "#a02020", icon: AlertTriangle },
   Medium: { bg: "#f0edfb", color: "#6b5dc8", icon: Info },
   Low:    { bg: "#e8f5f7", color: "#0b7189", icon: CheckCircle },
 };
+
+const statusStyle: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+  pass: { icon: CheckCircle, color: "#0b7189", bg: "#e8f5f7", label: "Pass" },
+  fail: { icon: XCircle, color: "#a02020", bg: "#fdf0f0", label: "Fail" },
+  na: { icon: MinusCircle, color: "#9a93ad", bg: "#edeaf5", label: "N/A" },
+};
+
+const PILLAR_ORDER = ["Accessibility", "Utility"];
 
 function ScoreCircle({ score }: { score: number }) {
   const r = 52;
@@ -137,9 +147,21 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
   const [status, setStatus] = useState<"loading" | "ready" | "missing">("loading");
   const [activePersona, setActivePersona] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [showChecks, setShowChecks] = useState(false);
+
+  // Optional AI rewrite state.
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [aiText, setAiText] = useState<string>("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string>("");
+  const [showAi, setShowAi] = useState(false);
 
   useEffect(() => {
     setStatus("loading");
+    // Reset AI state when navigating between reviews.
+    setAiText("");
+    setShowAi(false);
+    setAiError("");
     Promise.all([fetchReview(reviewId), fetchReviews().catch(() => [])])
       .then(([r, list]) => {
         setReview(r);
@@ -148,6 +170,7 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
         setStatus("ready");
       })
       .catch(() => setStatus("missing"));
+    fetchAiStatus().then((s) => setAiAvailable(!!s.available)).catch(() => setAiAvailable(false));
   }, [reviewId]);
 
   if (status === "loading") {
@@ -159,10 +182,30 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
   }
   if (status === "missing" || !review) return <NewReviewPane />;
 
+  const shownRewrite = showAi && aiText ? aiText : review.suggestedRewrite;
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(review.suggestedRewrite);
+    navigator.clipboard.writeText(shownRewrite);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAiRewrite = async () => {
+    if (aiText) {
+      setShowAi(true);
+      return;
+    }
+    setAiBusy(true);
+    setAiError("");
+    try {
+      const res = await requestAiRewrite(reviewId);
+      setAiText(res.rewrite);
+      setShowAi(true);
+    } catch (e: any) {
+      setAiError(e?.message || "AI rewrite failed. Showing the rule-based version.");
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   const idx = order.indexOf(reviewId);
@@ -268,13 +311,23 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }} className="space-y-4">
+          {review.capped && (
+            <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "#fdf0f0", border: "1px solid rgba(160,32,32,0.18)" }}>
+              <AlertTriangle size={14} style={{ color: "#a02020", marginTop: "1px", flexShrink: 0 }} />
+              <p style={{ fontSize: "0.78rem", color: "#a02020", lineHeight: 1.5 }}>{review.capReason}</p>
+            </div>
+          )}
           <div className="rounded-xl p-4 flex items-center gap-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
             <ScoreCircle score={review.score} />
             <div className="flex-1">
-              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6b6480", marginBottom: "10px" }}>Score breakdown</p>
+              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6b6480", marginBottom: "10px" }} className="flex items-center gap-1.5">
+                Score breakdown <InfoTip text={OVERALL_CRITERIA} />
+              </p>
               {review.scoreBreakdown.map(({ label, val }: any) => (
                 <div key={label} className="flex items-center gap-2 mb-2">
-                  <span style={{ fontSize: "0.72rem", color: "#6b6480", minWidth: "78px" }}>{label}</span>
+                  <span style={{ fontSize: "0.72rem", color: "#6b6480", minWidth: "78px" }} className="flex items-center gap-1">
+                    {label} <InfoTip text={SCORE_CRITERIA[label] ?? ""} />
+                  </span>
                   <div className="flex-1 rounded-full overflow-hidden" style={{ height: "4px", background: "#edeaf5" }}>
                     <div style={{ width: `${val}%`, height: "100%", background: scoreColor(val), borderRadius: "9999px" }} />
                   </div>
@@ -299,10 +352,79 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
             </div>
           )}
 
+          {/* Branch breakdown (8 branches, 4 per pillar) */}
+          {review.branches && review.branches.length > 0 && (
+            <div className="rounded-xl p-4" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
+              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#6b6480", marginBottom: "10px" }} className="flex items-center gap-1.5">
+                Branch breakdown <InfoTip text={BRANCHES_CRITERIA} />
+              </p>
+              {PILLAR_ORDER.map((pillar) => (
+                <div key={pillar} style={{ marginBottom: "8px" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 700, color: pillar === "Accessibility" ? "#0b7189" : "#6b5dc8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>{pillar}</p>
+                  {review.branches.filter((b: any) => b.pillar === pillar).map((b: any) => (
+                    <div key={b.branch} className="flex items-center gap-2 mb-1.5">
+                      <span style={{ fontSize: "0.7rem", color: "#6b6480", width: "140px", flexShrink: 0 }}>{b.branch}</span>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ height: "4px", background: "#edeaf5" }}>
+                        <div style={{ width: b.applicable ? `${b.val}%` : "0%", height: "100%", background: scoreColor(b.val), borderRadius: "9999px" }} />
+                      </div>
+                      <span style={{ fontSize: "0.68rem", fontFamily: "DM Mono, monospace", color: b.applicable ? "#170a1c" : "#c4bdd4", minWidth: "40px", textAlign: "right" }}>
+                        {b.applicable ? `${b.passed}/${b.applicable}` : "n/a"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Transparency: all 24 checks */}
+          {review.criteria && review.criteria.length > 0 && (
+            <div className="rounded-xl overflow-hidden" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
+              <button
+                onClick={() => setShowChecks((s) => !s)}
+                className="w-full flex items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-[#f6f4fb]"
+              >
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#170a1c" }} className="flex items-center gap-1.5">
+                  All 24 checks ({review.metrics?.criteriaPassed ?? 0}/{review.metrics?.criteriaApplicable ?? 0} applicable passed) <InfoTip text={CHECKS_CRITERIA} />
+                </span>
+                <div className="flex-1" />
+                <ChevronDown size={16} style={{ color: "#6b6480", transform: showChecks ? "rotate(180deg)" : undefined, transition: "0.2s" }} />
+              </button>
+              {showChecks && (
+                <div style={{ borderTop: "1px solid rgba(23,10,28,0.06)" }}>
+                  {PILLAR_ORDER.map((pillar) => (
+                    <div key={pillar}>
+                      <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6b6480", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 16px", background: "#f6f4fb" }}>{pillar}</p>
+                      {review.criteria.filter((c: any) => c.pillar === pillar).map((c: any) => {
+                        const st = statusStyle[c.status] ?? statusStyle.na;
+                        const Icon = st.icon;
+                        return (
+                          <div key={c.id} className="px-4 py-2.5 flex items-start gap-2.5" style={{ borderBottom: "1px solid rgba(23,10,28,0.04)" }}>
+                            <Icon size={14} style={{ color: st.color, marginTop: "2px", flexShrink: 0 }} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#170a1c" }}>{c.title}</span>
+                                <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ background: st.bg, color: st.color, fontSize: "0.62rem" }}>{st.label}</span>
+                              </div>
+                              <p style={{ fontSize: "0.72rem", color: "#6b6480", lineHeight: 1.45, marginTop: "2px" }}>{c.rule}</p>
+                              {c.evidence && (
+                                <p style={{ fontSize: "0.68rem", color: "#9a93ad", fontStyle: "italic", marginTop: "1px" }}>{c.evidence}</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {review.issues.length > 0 && (
             <div>
-              <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Detected Issues ({review.issues.length})
+              <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }} className="flex items-center gap-1.5">
+                Detected Issues ({review.issues.length}) <InfoTip text={ISSUES_CRITERIA} />
               </p>
               <div className="space-y-2">
                 {review.issues.map((issue: any, i: number) => {
@@ -331,33 +453,90 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
             </div>
           )}
 
+          {review.keyTerms && review.keyTerms.length > 0 && (
+            <div>
+              <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }} className="flex items-center gap-1.5">
+                Key terms explained ({review.keyTerms.length}) <InfoTip text={KEY_TERMS_CRITERIA} />
+              </p>
+              <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {review.keyTerms.map((t: any, i: number) => (
+                  <div key={i} className="rounded-lg p-3" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#170a1c" }}>{t.term}</span>
+                      <span className="px-1.5 py-0.5 rounded" style={{ fontSize: "0.66rem", background: "#f0edfb", color: "#6b5dc8" }}>{t.plain}</span>
+                    </div>
+                    <p style={{ fontSize: "0.76rem", color: "#6b6480", lineHeight: 1.5 }}>{t.definition}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Suggested Rewrite
             </p>
-            <div className="rounded-lg p-4" style={{ background: "#ffffff", border: "1px solid rgba(11,113,137,0.18)" }}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ background: "#e8f5f7", color: "#0b7189" }}>
-                  Plain language version
-                </span>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all"
-                  style={{ background: "#edeaf5", color: "#6b6480" }}
+            <div className="rounded-lg p-4" style={{ background: "#ffffff", border: `1px solid ${showAi ? "rgba(156,149,220,0.35)" : "rgba(11,113,137,0.18)"}` }}>
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <span
+                  className="px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1"
+                  style={showAi ? { background: "#f0edfb", color: "#6b5dc8" } : { background: "#e8f5f7", color: "#0b7189" }}
                 >
-                  {copied ? <Check size={11} /> : <Copy size={11} />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
+                  {showAi && <Sparkles size={10} />}
+                  {showAi ? "AI plain-language version" : "Plain language version"}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {aiAvailable && !aiText && (
+                    <button
+                      onClick={handleAiRewrite}
+                      disabled={aiBusy}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all disabled:opacity-60"
+                      style={{ background: "#9c95dc", color: "#ffffff" }}
+                    >
+                      {aiBusy ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+                      {aiBusy ? "Writing…" : "AI rewrite"}
+                    </button>
+                  )}
+                  {aiText && (
+                    <div className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(23,10,28,0.10)" }}>
+                      <button
+                        onClick={() => setShowAi(false)}
+                        className="px-2 py-1 text-xs font-medium"
+                        style={{ background: !showAi ? "#0b7189" : "#ffffff", color: !showAi ? "#ffffff" : "#6b6480" }}
+                      >
+                        Rule-based
+                      </button>
+                      <button
+                        onClick={() => setShowAi(true)}
+                        className="px-2 py-1 text-xs font-medium flex items-center gap-1"
+                        style={{ background: showAi ? "#9c95dc" : "#ffffff", color: showAi ? "#ffffff" : "#6b6480" }}
+                      >
+                        <Sparkles size={10} /> AI
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all"
+                    style={{ background: "#edeaf5", color: "#6b6480" }}
+                  >
+                    {copied ? <Check size={11} /> : <Copy size={11} />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                </div>
               </div>
+              {aiError && (
+                <p style={{ fontSize: "0.75rem", color: "#a02020", marginBottom: "8px" }}>{aiError}</p>
+              )}
               <p style={{ fontSize: "0.85rem", color: "#170a1c", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
-                {review.suggestedRewrite}
+                {shownRewrite}
               </p>
             </div>
           </div>
 
           <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Persona Impact
+            <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b6480", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }} className="flex items-center gap-1.5">
+              Persona Impact <InfoTip text={PERSONA_OVERVIEW} />
             </p>
             <div className="flex gap-1.5 mb-3 flex-wrap">
               {Object.keys(review.personaIssues).map((persona) => (
@@ -376,6 +555,12 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
               ))}
             </div>
             <div className="rounded-lg p-4" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
+              {PERSONA_CRITERIA[activePersona] && (
+                <p style={{ fontSize: "0.74rem", color: "#6b6480", lineHeight: 1.55, marginBottom: "10px", paddingBottom: "10px", borderBottom: "1px solid rgba(23,10,28,0.06)" }}>
+                  <span style={{ color: "#9c95dc", fontWeight: 600 }}>Who this is: </span>
+                  {PERSONA_CRITERIA[activePersona]}
+                </p>
+              )}
               <ul className="space-y-2">
                 {(review.personaIssues[activePersona] || []).map((issue: string, i: number) => (
                   <li key={i} className="flex gap-2 items-start">

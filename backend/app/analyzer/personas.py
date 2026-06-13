@@ -1,4 +1,10 @@
-"""Generates issues for each reader persona based on what the detectors found."""
+"""Generates per-persona issue lists from what the detectors found.
+
+Non-technical: flags severity-3 jargon, missing numbered steps, and fear tone.
+Older adult: flags known-confusing acronyms (MFA/TOTP/SSO etc), avg sentence length > 18 words, no human contact path.
+Non-native English: flags passive voice, long sentences, and compound technical terms.
+Each persona gets a positive note if no issues are found.
+"""
 from __future__ import annotations
 
 from typing import Dict, List

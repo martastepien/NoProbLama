@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Clock } from "lucide-react";
 import { fetchReviews, fetchInsights, scoreColor, riskBadge } from "../services/api";
+import { InfoTip } from "./InfoTip";
+import { INSIGHT_CRITERIA } from "../lib/criteria";
 import logo from "../imports/Noproblammalogo.png";
 
 function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
@@ -50,13 +52,16 @@ export function DashboardPage() {
   const recentReviews = reviews.slice(0, 5);
   const total = reviews.length;
 
-  // Top issues -> percentage of documents affected.
-  const topIssues = (insights?.topIssueTypes ?? []).slice(0, 3).map((t: any) => ({
+  // Top issues, with bars scaled RELATIVE to the most common issue so they
+  // visually differ (scaling by total saturates near 100% and looks identical).
+  const issuesRaw = (insights?.topIssueTypes ?? []).slice(0, 4);
+  const maxIssue = Math.max(1, ...issuesRaw.map((t: any) => t.count));
+  const topIssues = issuesRaw.map((t: any) => ({
     label: t.type,
-    value: `${total ? Math.round((t.count / total) * 100) : 0}% of docs`,
-    pct: total ? Math.round((t.count / total) * 100) : 0,
+    value: `${t.count} of ${total}`,
+    pct: Math.round((t.count / maxIssue) * 100),
   }));
-  const issueColors = ["#9c95dc", "#c19ab7", "#228cdb"];
+  const issueColors = ["#9c95dc", "#c19ab7", "#228cdb", "#0b7189"];
 
   const riskRows = [
     { key: "high", label: "High risk", bg: "#fdf0f0", text: "#a02020" },
@@ -75,11 +80,11 @@ export function DashboardPage() {
         <div className="text-center mb-10">
           <img
             src={logo}
-            alt="Noproblamma mascot"
+            alt="NoProbLama mascot"
             style={{ width: "108px", height: "108px", objectFit: "contain", margin: "0 auto 16px" }}
           />
           <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#170a1c", letterSpacing: "-0.035em", lineHeight: 1 }}>
-            Noproblamma
+            NoProbLama
           </h1>
           <p style={{ fontSize: "0.9rem", color: "#9c95dc", fontWeight: 600, marginTop: "6px", letterSpacing: "0.01em" }}>
             Make security understandable.
@@ -165,8 +170,8 @@ export function DashboardPage() {
           {/* Right: Insights + Risk */}
           <div className="flex flex-col gap-4">
             <div className="rounded-xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
-              <h2 style={{ color: "#170a1c", fontSize: "0.925rem", fontWeight: 600, marginBottom: "14px" }}>
-                Insights
+              <h2 style={{ color: "#170a1c", fontSize: "0.925rem", fontWeight: 600, marginBottom: "14px" }} className="flex items-center gap-1.5">
+                Insights <InfoTip text={INSIGHT_CRITERIA.topIssues} />
               </h2>
               <div className="space-y-3.5">
                 {topIssues.length === 0 && (
@@ -194,8 +199,8 @@ export function DashboardPage() {
             </div>
 
             <div className="rounded-xl p-5" style={{ background: "#ffffff", border: "1px solid rgba(23,10,28,0.07)" }}>
-              <h2 style={{ color: "#170a1c", fontSize: "0.925rem", fontWeight: 600, marginBottom: "14px" }}>
-                Risk Breakdown
+              <h2 style={{ color: "#170a1c", fontSize: "0.925rem", fontWeight: 600, marginBottom: "14px" }} className="flex items-center gap-1.5">
+                Risk Breakdown <InfoTip text={INSIGHT_CRITERIA.riskBreakdown} />
               </h2>
               {riskRows.map(({ label, count, pct, bg, text }) => (
                 <div key={label} className="flex items-center gap-3 mb-2.5">

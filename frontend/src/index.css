@@ -11,6 +11,12 @@ body,
   height: 100%;
 }
 
+/* Scale the whole UI up proportionally (~10%) for better readability.
+   Adjust this single value to make everything bigger or smaller. */
+#root {
+  zoom: 1.1;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;

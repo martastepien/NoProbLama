@@ -1,4 +1,14 @@
 """Basic tests for the engine and API. Run with: cd backend && python3 -m pytest -q"""
+import os
+import tempfile
+
+# Point persistence at a throwaway file so tests never touch real review data.
+os.environ["NOPROBLAMA_DATA"] = os.path.join(tempfile.gettempdir(), "noproblama_test_reviews.json")
+try:
+    os.remove(os.environ["NOPROBLAMA_DATA"])
+except OSError:
+    pass
+
 from fastapi.testclient import TestClient
 
 from app.analyzer import analyze
@@ -45,9 +55,12 @@ def test_rewrite_removes_shouting_and_jargon():
 def test_review_shape_is_complete():
     r = analyze(JARGON_HEAVY, title="X", team="Sec")
     for key in ("score", "risk", "scoreBreakdown", "issues", "personaIssues",
-                "flaggedTerms", "suggestedRewrite", "tags", "metrics"):
+                "flaggedTerms", "suggestedRewrite", "tags", "metrics",
+                "pillars", "branches", "criteria"):
         assert key in r
-    assert len(r["scoreBreakdown"]) == 4
+    assert len(r["scoreBreakdown"]) == 2          # two pillars
+    assert len(r["criteria"]) == 24               # 24 binary checks
+    assert {p["label"] for p in r["pillars"]} == {"Accessibility", "Utility"}
     assert set(r["personaIssues"]) == {"Non-technical", "Older adult", "Non-native English"}
 
 
@@ -59,11 +72,12 @@ def test_empty_text_is_safe():
 def test_api_flow():
     c = TestClient(app)
     assert c.get("/api/health").json()["status"] == "ok"
-    assert len(c.get("/api/reviews").json()) >= 6
+    before = len(c.get("/api/reviews").json())
     created = c.post("/api/analyze", json={"text": JARGON_HEAVY, "title": "T"}).json()
     assert created["id"]
+    assert len(c.get("/api/reviews").json()) == before + 1
     assert c.get(f"/api/reviews/{created['id']}").json()["title"] == "T"
     assert c.post("/api/analyze", json={"text": "  "}).status_code == 400
     assert c.get("/api/reviews/99999").status_code == 404
     ins = c.get("/api/insights").json()
-    assert ins["totalReviews"] >= 6 and len(ins["avgBreakdown"]) == 4
+    assert ins["totalReviews"] >= 1 and len(ins["avgBreakdown"]) == 2

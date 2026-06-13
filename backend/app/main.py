@@ -1,4 +1,12 @@
-"""NoProbLama API - HTTP wrapper around the accessibility engine."""
+"""NoProbLama FastAPI app.
+
+Endpoints:
+  POST /api/analyze          run the engine on submitted text, store and return the review
+  GET  /api/reviews          list all stored reviews, newest first
+  GET  /api/reviews/{id}     fetch one review by id
+  GET  /api/guidelines       return the plain-language writing guidelines
+  GET  /api/insights         aggregate stats across all reviews (avg score, top terms, persona impact)
+"""
 from __future__ import annotations
 
 from collections import Counter
@@ -11,6 +19,7 @@ from pydantic import BaseModel
 from .storage import store
 from .guidelines import GUIDELINES
 from .analyzer.personas import PERSONAS
+from .analyzer.ai import ai_available, ai_rewrite, AIError
 
 app = FastAPI(title="NoProbLama API", version="1.0.0")
 
@@ -28,6 +37,8 @@ class AnalyzeRequest(BaseModel):
     team: Optional[str] = ""
 
 
+# persona issue strings that start with these are positive feedback, not real problems;
+# /insights filters them out when counting issues per persona
 _POSITIVE_PREFIXES = (
     "Clear", "Structure", "Short", "Numbered steps help",
 )
@@ -61,6 +72,30 @@ def get_review(review_id: str):
 @app.get("/api/guidelines")
 def get_guidelines():
     return GUIDELINES
+
+
+@app.get("/api/ai-status")
+def ai_status():
+    """Lets the frontend show or hide the AI rewrite button."""
+    return {"available": ai_available()}
+
+
+@app.post("/api/reviews/{review_id}/ai-rewrite")
+def ai_rewrite_endpoint(review_id: str):
+    """Produce a high-quality plain-language rewrite with the LLM, on demand.
+
+    The rule-based rewrite is always available on the review itself; this is an
+    optional, explicitly-requested upgrade.
+    """
+    review = store.get(review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    try:
+        result = ai_rewrite(review["originalText"], issues=review.get("issues"))
+    except AIError as e:
+        # 503: feature unavailable / failed. Frontend falls back to rule-based.
+        raise HTTPException(status_code=503, detail=str(e))
+    return result
 
 
 @app.get("/api/insights")

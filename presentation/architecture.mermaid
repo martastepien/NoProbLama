@@ -1,0 +1,45 @@
+flowchart TD
+    U(["User pastes a security message"]) --> FE["React frontend — New Review form"]
+    FE -->|"POST /api/analyze"| API["FastAPI: /api/analyze"]
+    API --> ENG["engine.analyze()"]
+
+    subgraph DET ["Detectors — raw signals from the text"]
+        R["readability.py<br/>Flesch ease, grade, sentence lengths"]
+        J["jargon.py<br/>match terms · severity · definitions"]
+        S["structure.py<br/>passive · steps · ALL-CAPS · fear · reassurance"]
+    end
+
+    ENG --> R
+    ENG --> J
+    ENG --> S
+
+    R --> CE["criteria_engine.evaluate()"]
+    J --> CE
+    S --> CE
+
+    subgraph CHK ["24 checks = 2 pillars × 4 branches × 3"]
+        AC["Accessibility — 12 checks<br/>simplicity · cognitive load · consistency · motor/memory"]
+        UT["Utility — 12 checks<br/>instructions · feedback · secure option · errors"]
+    end
+
+    CE --> AC
+    CE --> UT
+    AC --> GATE{"For each check:<br/>does it apply here?"}
+    UT --> GATE
+    GATE -->|"no"| NAX["Not applicable<br/>(excluded from score)"]
+    GATE -->|"yes"| PF["Pass or Fail<br/>+ rule + evidence"]
+
+    PF --> SCO["Score = passed ÷ applicable × 100"]
+    NAX --> SCO
+    SCO --> RISK["Risk band<br/>70+ Good · 50–69 Moderate · <50 High"]
+
+    ENG --> EXTRA["Also built:<br/>persona barriers · key-term definitions<br/>plain-language rewrite · tags"]
+
+    SCO --> REV["Review object"]
+    RISK --> REV
+    EXTRA --> REV
+
+    REV --> STORE[("storage.py<br/>reviews.json on disk")]
+    REV -->|"JSON response"| RENDER["Frontend renders:<br/>pillar bars · branch bars · 24-check panel<br/>issues · personas · key terms · rewrite"]
+
+    RENDER -.->|"optional, on click"| AI["ai.py — OpenAI gpt-4o-mini<br/>falls back to rule-based on any error"]
