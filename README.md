@@ -1,2 +1,2 @@
-# CypherClear
-CypherClear aims to reduce cybersecurity exclusion caused by complex language and confusing security workflows
+# NoProbLama
+A tool for teams that create security communications to ensure those communications are understandable and accessible for everyone.
