@@ -2,7 +2,7 @@
 
 Checks: passive voice patterns, whether numbered steps are present, ALL CAPS and
 fear-vocabulary that alarm rather than guide, reassurance signals, and sentences
-over 22 words. Results feed directly into the step_clarity and inclusivity scores.
+over 22 words. Results feed into the criteria checks in criteria_engine.py.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ _FEAR_WORDS = {
     "malicious", "suspicious", "unauthorized", "vulnerability", "exploit",
 }
 
-# any match here means the text has a reassurance signal; absence costs points in inclusivity
+# any match here means the text has a reassurance signal; absence fails the relevant criteria check
 _REASSURANCE_RE = re.compile(
     r"\b(?:we will help|your account is safe|no (?:further )?action needed|"
     r"don't worry|do not worry|we('| a)re here|you are safe|we have not|"
@@ -45,7 +45,7 @@ _ACTION_VERBS = {
     "verify", "confirm", "check", "do", "press", "find", "visit", "call",
 }
 
-LONG_SENTENCE_WORDS = 22  # threshold for flagging a sentence; each one over this costs -7 step_clarity and -4 inclusivity
+LONG_SENTENCE_WORDS = 22  # sentences over this word count get flagged and fed into the relevant criteria checks
 
 
 @dataclass

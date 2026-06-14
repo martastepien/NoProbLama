@@ -1,7 +1,7 @@
 """Runs all detectors on the input text and assembles the full review object.
 
-Score is a weighted average of four components:
-  readability (30%) + jargon-free (30%) + step clarity (20%) + inclusivity (20%)
+Score comes from the 24-criteria pass/fail matrix in criteria_engine.py:
+  passed / applicable * 100, split across Accessibility and Utility pillars.
 Risk band: low >= 70, medium >= 50, high below that.
 """
 from __future__ import annotations
@@ -143,11 +143,9 @@ def analyze(text: str, title: str = "", team: str = "") -> Dict:
     crit = evaluate_criteria(text, read, jargon, structure)
     score = crit["overall"]
 
-    # Safety cap: a message that is genuinely unreadable for under-represented
-    # readers should never land above High risk, even if it passes many Utility
-    # checks. Triggers if the Accessibility pillar is weak, or there are several
-    # heavy (severity-3) jargon terms a layperson won't know. Kept transparent
-    # via cap_reason so the score drop is never mysterious.
+    # Safety cap: if the Accessibility pillar scored below 60, or there are 2+
+    # severity-3 jargon terms, force the score below 50 (High risk) regardless
+    # of how well it did on Utility checks. cap_reason is surfaced in the UI.
     accessibility = next((p["val"] for p in crit["pillars"] if p["label"] == "Accessibility"), 100)
     heavy_terms = sorted({h.matched for h in jargon if h.severity >= 3})
     cap_reason = ""

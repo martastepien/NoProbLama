@@ -1,13 +1,8 @@
 """Review store with simple JSON-file persistence.
 
-Reviews are kept in memory for speed and mirrored to backend/data/reviews.json
-so they survive a server restart. The store starts EMPTY on a fresh machine —
-the dashboard fills up only with documents you actually analyze. Run
-`python3 -m app.seed` if you want to preload the demo examples.
-
-A real deployment would swap the JSON file for a database, but the create / get
-/ list interface is all the API depends on, so that change wouldn't touch the
-engine or the frontend.
+Reviews are kept in memory and mirrored to backend/data/reviews.json so they
+survive a server restart. Starts empty on a fresh machine — run
+`python3 -m app.seed` to preload the demo examples.
 """
 from __future__ import annotations
 

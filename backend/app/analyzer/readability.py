@@ -1,7 +1,7 @@
 """Flesch Reading Ease (0-100, higher = easier) and Flesch-Kincaid Grade Level.
 
 Both formulas penalise long sentences (words/sentence) and long words (syllables/word).
-Flesch RE feeds directly into the readability component of the overall score.
+Results feed into the criteria checks in criteria_engine.py.
 """
 from __future__ import annotations
 
