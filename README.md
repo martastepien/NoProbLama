@@ -1,6 +1,6 @@
 # NoProbLama
 
-A tool for security and UX teams to check whether their security messages (MFA flows, login alerts, phishing warnings, password resets) are actually understandable — especially for non-technical users, older adults, and non-native English speakers.
+A tool for security and UX teams to check whether their security messages (MFA flows, login alerts, phishing warnings, password resets) are actually understandable for non-technical users, older adults, and non-native English speakers.
 
 Built for the Adyen "under-representation in cyber security" hackathon challenge.
 
@@ -11,10 +11,10 @@ Built for the Adyen "under-representation in cyber security" hackathon challenge
 Paste any security message. The backend runs it through a rule-based engine and returns a score, flagged issues, a persona breakdown, and a plain-language rewrite. Everything is computed live — no hardcoded results.
 
 **Score (0-100)** comes from **24 binary checks** in two equal pillars (`analyzer/criteria_engine.py`):
-- **Accessibility (12 checks):** language simplicity, cognitive load, consistent terminology, motor/memory needs — can people read and understand it?
-- **Utility (12 checks):** straightforward instructions, clear feedback, an obvious secure option, helpful error messages — can people act safely?
+- **Accessibility (12 checks):** language simplicity, cognitive load, consistent terminology, motor/memory needs. Can people read and understand it?
+- **Utility (12 checks):** clear instructions, obvious next step, helpful error messages. Can people act safely?
 
-Each check returns **pass / fail / not-applicable**. Score = `passed ÷ applicable × 100`, so checks that don't apply to a message (e.g. an error message for a simple alert) are excluded and short, single-purpose messages aren't penalised for affordances they never needed (the same way WCAG conformance handles non-applicable criteria). The supporting detectors (Flesch readability, the jargon dictionary, passive-voice / step / tone detection) feed those checks.
+Each check returns **pass / fail / not-applicable**. Score = `passed ÷ applicable × 100`. Checks that don't apply to a given message are excluded, so a simple alert isn't penalised for missing step-by-step instructions. The underlying detectors (Flesch readability, jargon dictionary, passive-voice / step / tone detection) feed into these checks.
 
 **Risk band:** low (≥70) / medium (≥50) / high (<50)
 
@@ -23,7 +23,7 @@ Each check returns **pass / fail / not-applicable**. Score = `passed ÷ applicab
 - Older adult: unfamiliar acronyms, avg sentence length >18 words, no human contact path
 - Non-native English: passive voice, long sentences, compound technical terms
 
-The jargon dictionary (`analyzer/jargon.py`) maps ~35 cybersecurity terms to plain replacements, definitions, and severity weights. It's designed to be extended with your own product vocabulary.
+The jargon dictionary (`analyzer/jargon.py`) maps ~35 cybersecurity terms to plain replacements, definitions, and severity weights. Add your own product vocabulary by extending it.
 
 ---
 
