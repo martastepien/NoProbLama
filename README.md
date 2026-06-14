@@ -1,6 +1,7 @@
 # NoProbLama
 
-<img width="2048" height="2048" alt="Noproblammalogo" src="https://github.com/user-attachments/assets/2d2aa6b6-d6a7-48c0-b8a3-2a34aca11e92" />
+<img width="200" height="200" alt="Noproblammalogo" src="https://github.com/user-attachments/assets/1f7f4c35-60e1-4d25-8405-1693a6b2c168" />
+
 
 A tool for security and UX teams to check whether their security messages (MFA flows, login alerts, phishing warnings, password resets) are actually understandable for non-technical users, older adults, and non-native English speakers.
 
