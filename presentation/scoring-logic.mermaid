@@ -1,0 +1,46 @@
+flowchart TD
+    M(["Security message"]) --> NOTE["Run 24 checks.<br/>Each returns Pass, Fail, or N/A.<br/>N/A means it does not apply to this message."]
+    NOTE --> ACC["Accessibility<br/>12 checks"]
+    NOTE --> UTL["Utility<br/>12 checks"]
+
+    subgraph A ["Accessibility branches"]
+        A1["Language Simplicity<br/>1 short + jargon-free<br/>2 plain language + active voice<br/>3 unambiguous about risk"]
+        A2["Cognitive Load<br/>4 no idioms<br/>5 verb-first action labels<br/>6 chunked sentences"]
+        A3["Textual Consistency<br/>7 consistent terms<br/>8 numbered steps<br/>9 explicit consent"]
+        A4["Motor and Memory<br/>10 no memorizing<br/>11 pasteable input<br/>12 timeout has an exit"]
+    end
+
+    subgraph U ["Utility branches"]
+        U1["Straightforward Instructions<br/>13 hazard 'do not'<br/>14 consequences first<br/>15 format hints"]
+        U2["Clear Feedback and Status<br/>16 visible actor<br/>17 confirms outcome<br/>18 error has a fix"]
+        U3["Obvious Security Option<br/>19 safe path flagged<br/>20 defaults explained<br/>21 value of the choice"]
+        U4["Explicit Error Messages<br/>22 calm wording<br/>23 verification cues<br/>24 revoke or undo"]
+    end
+
+    ACC --> A1
+    ACC --> A2
+    ACC --> A3
+    ACC --> A4
+    UTL --> U1
+    UTL --> U2
+    UTL --> U3
+    UTL --> U4
+
+    A1 --> PA["Accessibility score<br/>= passed / applicable"]
+    A2 --> PA
+    A3 --> PA
+    A4 --> PA
+    U1 --> PU["Utility score<br/>= passed / applicable"]
+    U2 --> PU
+    U3 --> PU
+    U4 --> PU
+
+    PA --> OV["Overall score<br/>passed / applicable over all 24"]
+    PU --> OV
+
+    OV --> CAP{"score 50 or more AND<br/>(Accessibility below 60<br/>OR 2+ heavy jargon terms)?"}
+    CAP -->|"yes"| CAPPED["Force score to 49<br/>show red banner with reason"]
+    CAP -->|"no"| KEEP["Keep the score"]
+
+    CAPPED --> RISK["Risk band<br/>70+ Good, 50 to 69 Moderate, below 50 High"]
+    KEEP --> RISK

@@ -69,6 +69,13 @@ def get_review(review_id: str):
     return review
 
 
+@app.delete("/api/reviews/{review_id}")
+def delete_review(review_id: str):
+    if not store.delete(review_id):
+        raise HTTPException(status_code=404, detail="Review not found.")
+    return {"deleted": review_id}
+
+
 @app.get("/api/guidelines")
 def get_guidelines():
     return GUIDELINES

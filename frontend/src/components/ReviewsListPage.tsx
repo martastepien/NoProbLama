@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Search, Filter, ChevronRight, Clock, Tag } from "lucide-react";
-import { fetchReviews, scoreColor, riskBadge } from "../services/api";
+import { Search, Filter, ChevronRight, Clock, Tag, Trash2 } from "lucide-react";
+import { fetchReviews, deleteReview, scoreColor, riskBadge } from "../services/api";
 
 function ScoreRing({ score, size = 48 }: { score: number; size?: number }) {
   const r = size * 0.37;
@@ -43,13 +43,25 @@ export function ReviewsListPage() {
   const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchReviews()
-      .then(setReviews)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const load = () => fetchReviews().then(setReviews).catch(() => {}).finally(() => setLoading(false));
+
+  useEffect(() => { load(); }, []);
+
+  const handleDelete = async (e: React.MouseEvent, review: any) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete the review "${review.title}"? This cannot be undone.`)) return;
+    setDeletingId(review.id);
+    try {
+      await deleteReview(review.id);
+      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+    } catch {
+      window.alert("Could not delete this review.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = reviews.filter((r) => {
     const matchesQuery = r.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -117,22 +129,27 @@ export function ReviewsListPage() {
             const badge = riskBadge[review.risk];
             const team = teamColors[review.team] ?? { bg: "#edeaf5", color: "#6b6480" };
             return (
-              <button
+              <div
                 key={review.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/review/${review.id}`)}
+                onKeyDown={(e) => { if (e.key === "Enter") navigate(`/review/${review.id}`); }}
                 className="text-left rounded-xl p-5 transition-all duration-150 group"
                 style={{
                   background: "#ffffff",
                   border: "1px solid rgba(23,10,28,0.07)",
                   boxShadow: "0 1px 4px rgba(23,10,28,0.04)",
+                  cursor: "pointer",
+                  opacity: deletingId === review.id ? 0.5 : 1,
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(23,10,28,0.09)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(34,140,219,0.25)";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(23,10,28,0.09)";
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(34,140,219,0.25)";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 1px 4px rgba(23,10,28,0.04)";
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(23,10,28,0.07)";
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 4px rgba(23,10,28,0.04)";
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(23,10,28,0.07)";
                 }}
               >
                 {/* Top row */}
@@ -145,6 +162,17 @@ export function ReviewsListPage() {
                     >
                       {badge.label}
                     </span>
+                    <button
+                      onClick={(e) => handleDelete(e, review)}
+                      title="Delete review"
+                      aria-label="Delete review"
+                      className="flex items-center justify-center rounded transition-colors"
+                      style={{ width: 24, height: 24, color: "#c4bdd4" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#a02020"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#c4bdd4"; }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                     <ChevronRight
                       size={14}
                       style={{ color: "#c4bdd4", transition: "transform 0.15s" }}
@@ -201,7 +229,7 @@ export function ReviewsListPage() {
                     </div>
                   ))}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

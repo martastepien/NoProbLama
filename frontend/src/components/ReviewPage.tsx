@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { AlertTriangle, Info, CheckCircle, XCircle, MinusCircle, ChevronRight, ChevronDown, Sparkles, Copy, Check, ArrowLeft, Zap, Loader2, Wand2 } from "lucide-react";
-import { fetchReview, fetchReviews, analyzeText, scoreColor, fetchAiStatus, requestAiRewrite } from "../services/api";
+import { AlertTriangle, Info, CheckCircle, XCircle, MinusCircle, ChevronRight, ChevronDown, Sparkles, Copy, Check, ArrowLeft, Zap, Loader2, Wand2, Trash2 } from "lucide-react";
+import { fetchReview, fetchReviews, analyzeText, scoreColor, fetchAiStatus, requestAiRewrite, deleteReview } from "../services/api";
 import { InfoTip } from "./InfoTip";
 import { SCORE_CRITERIA, OVERALL_CRITERIA, PERSONA_CRITERIA, PERSONA_OVERVIEW, ISSUES_CRITERIA, KEY_TERMS_CRITERIA, CHECKS_CRITERIA, BRANCHES_CRITERIA } from "../lib/criteria";
 
@@ -208,6 +208,16 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete the review "${review.title}"? This cannot be undone.`)) return;
+    try {
+      await deleteReview(reviewId);
+      navigate("/reviews");
+    } catch {
+      window.alert("Could not delete this review.");
+    }
+  };
+
   const idx = order.indexOf(reviewId);
 
   return (
@@ -243,6 +253,16 @@ function ReviewAnalysis({ reviewId }: { reviewId: string }) {
             <span className="px-2 py-0.5 rounded-md text-xs font-medium" style={{ background: "#edeaf5", color: "#6b6480" }}>
               Original
             </span>
+            <button
+              onClick={handleDelete}
+              title="Delete this review"
+              aria-label="Delete this review"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[#fdf0f0]"
+              style={{ color: "#a02020", border: "1px solid rgba(160,32,32,0.18)" }}
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
           </div>
         </div>
 

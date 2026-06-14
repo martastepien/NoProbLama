@@ -22,6 +22,7 @@ async function request(path, options) {
 }
 
 export const fetchReviews = () => request("/api/reviews");
+export const deleteReview = (id) => request(`/api/reviews/${id}`, { method: "DELETE" });
 export const fetchReview = (id) => request(`/api/reviews/${id}`);
 export const fetchInsights = () => request("/api/insights");
 export const fetchGuidelines = () => request("/api/guidelines");

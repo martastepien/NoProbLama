@@ -1,0 +1,9 @@
+flowchart LR
+    M(["Message"]) --> C["24 checks<br/>Pass / Fail / N/A"]
+    C --> ACC["Accessibility (12)<br/>simplicity · load · consistency · motor/memory"]
+    C --> UTL["Utility (12)<br/>instructions · feedback · secure option · errors"]
+    ACC --> S["Score = passed / applicable"]
+    UTL --> S
+    S --> CAP{"Accessibility < 60<br/>or 2+ heavy jargon?"}
+    CAP -->|"yes"| H["Cap to High risk"]
+    CAP -->|"no"| B["70+ Good · 50-69 Moderate · below 50 High"]
